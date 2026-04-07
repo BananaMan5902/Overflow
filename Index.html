@@ -1,0 +1,60 @@
+# resource_simulator.py
+
+import threading
+import time
+
+# CONFIG (adjust these safely)
+CPU_THREADS = 2          # number of CPU workers
+MEMORY_MB = 100         # memory to allocate
+DISK_MB = 50            # disk to write
+RUN_TIME = 10           # seconds to run
+
+# ---- CPU TASK ----
+def cpu_task():
+    while running:
+        _ = 12345 * 67890  # simple computation
+
+# ---- MEMORY TASK ----
+def memory_task():
+    data = []
+    for _ in range(MEMORY_MB):
+        data.append(bytearray(1024 * 1024))  # 1 MB each
+        if not running:
+            break
+    while running:
+        time.sleep(1)
+
+# ---- DISK TASK ----
+def disk_task():
+    with open("test_file.bin", "wb") as f:
+        for _ in range(DISK_MB):
+            if not running:
+                break
+            f.write(b'\0' * 1024 * 1024)  # 1 MB
+
+# ---- MAIN ----
+running = True
+
+threads = []
+
+# stack CPU workers
+for _ in range(CPU_THREADS):
+    t = threading.Thread(target=cpu_task)
+    t.start()
+    threads.append(t)
+
+# stack memory + disk
+threads.append(threading.Thread(target=memory_task))
+threads.append(threading.Thread(target=disk_task))
+
+for t in threads[CPU_THREADS:]:
+    t.start()
+
+# run for a limited time
+time.sleep(RUN_TIME)
+running = False
+
+for t in threads:
+    t.join()
+
+print("Simulation complete.")
